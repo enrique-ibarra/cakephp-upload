@@ -40,6 +40,7 @@ class UploadBehavior extends ModelBehavior {
 		'thumbnailMethod' => 'imagick',
 		'thumbnailName' => null,
 		'thumbnailPath' => null,
+        'thumbnailSubFolder' => null,
 		'thumbnailPrefixStyle' => true,
 		'thumbnailQuality' => 75,
 		'thumbnailSizes' => array(),
@@ -128,17 +129,17 @@ class UploadBehavior extends ModelBehavior {
 			$options['rootDir'] = $this->_getRootDir($options['rootDir']);
 			$options['thumbnailName'] = $this->_getThumbnailName($options['thumbnailName'], $options['thumbnailPrefixStyle']);
 
-			$options['thumbnailPath'] = Folder::slashTerm($this->_path($model, $field, array(
-				'isThumbnail' => true,
-				'path' => ($options['thumbnailPath'] === null ? $options['path'] : $options['thumbnailPath']),
-				'rootDir' => $options['rootDir']
-			)));
-
 			$options['path'] = Folder::slashTerm($this->_path($model, $field, array(
 				'isThumbnail' => false,
 				'path' => $options['path'],
 				'rootDir' => $options['rootDir']
 			)));
+
+            $options['thumbnailPath'] = Folder::slashTerm($this->_path($model, $field, array(
+                'isThumbnail' => true,
+                'path' => ($options['thumbnailPath'] === null ? $options['path'] : $options['thumbnailPath']),
+                'rootDir' => $options['rootDir']
+            )));
 
 			if (!in_array($options['thumbnailMethod'], $this->_resizeMethods)) {
 				$options['thumbnailMethod'] = 'imagick';
@@ -314,7 +315,7 @@ class UploadBehavior extends ModelBehavior {
 				throw new UploadException('Unable to upload file');
 			}
 
-			$this->_createThumbnails($model, $field, $path, $thumbnailPath);
+            $this->_createThumbnails($model, $field, $path, $thumbnailPath . (!empty($options['thumbnailSubFolder']) ? $options['thumbnailSubFolder'] : ''));
 			if ($model->hasField($options['fields']['dir'])) {
 				if (!($created && $options['pathMethod'] == '_getPathFlat') && $options['saveDir']) {
 					$db = $model->getDataSource();
@@ -1864,8 +1865,8 @@ class UploadBehavior extends ModelBehavior {
  **/
 	protected function _pathThumbnail(Model $model, $field, $params = array()) {
 		return str_replace(
-			array('{size}', '{geometry}'),
-			array($params['size'], $params['geometry']),
+			array('{size}', '{geometry}', '{DS}'),
+			array($params['size'], $params['geometry'], DS),
 			$params['thumbnailPath']
 		);
 	}
@@ -1884,6 +1885,7 @@ class UploadBehavior extends ModelBehavior {
 		$isImage = $this->_isImage($this->runtime[$model->alias][$field]['type']);
 		$isMedia = $this->_isMedia($this->runtime[$model->alias][$field]['type']);
 		$createThumbnails = $this->settings[$model->alias][$field]['thumbnails'];
+        $DS = DS;
 		$hasThumbnails = !empty($this->settings[$model->alias][$field]['thumbnailSizes']);
 
 		if (($isImage || $isMedia) && $createThumbnails && $hasThumbnails) {
